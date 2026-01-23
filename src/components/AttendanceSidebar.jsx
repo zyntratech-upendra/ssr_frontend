@@ -5,7 +5,7 @@ import TeacherAllocation from '../pages/TeacherAllocation';
 import TimetablePreparation from '../pages/TimetablePreparation';
 import TakeAttendance from '../pages/TakeAttendance';
 import AttendanceReport from '../pages/AttendanceReport';
-import Attendance from '../../../server/models/Attendance.js';
+
 import SectionManagement from '../pages/SectionManagement.jsx';
 
 
