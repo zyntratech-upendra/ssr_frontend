@@ -1,0 +1,17 @@
+
+
+
+
+@import './styles/variables.css';
+@import './styles/global.css';
+@import './styles/layout.css';
+@import './styles/forms.css';
+/* @import './styles/login.css'; */
+@import './styles/dashboard.css';
+/* @import './styles/register.css'; */
+@import './styles/responsive.css';
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
