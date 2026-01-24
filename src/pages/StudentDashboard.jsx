@@ -1,8 +1,42 @@
 import Layout from "../components/Layout";
 import Card from "../components/Card";
-import { BookOpen, Calendar, FileText, Award } from "lucide-react";
+import { Calendar, Award } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getStudentDashboardStats } from "../services/studentDashboardService";
 
 const StudentDashboard = () => {
+  const [stats, setStats] = useState({
+    enrolledCourses: 0,
+    attendance: 0,
+    assignments: 0,
+    gpa: 0,
+    courses: [],
+    studentProfile: {},
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // Get user from localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = user._id || user.id;
+
+        if (userId) {
+          const dashboardStats = await getStudentDashboardStats(userId);
+          setStats(dashboardStats);
+        }
+      } catch (error) {
+        console.error("Error loading student dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   return (
     <>
       <style>{`
@@ -94,26 +128,14 @@ const StudentDashboard = () => {
         {/* KPI CARDS */}
         <div className="dashboard-grid">
           <Card
-            title="Enrolled Courses"
-            value="6"
-            description="Active courses this semester"
-            icon={BookOpen}
-          />
-          <Card
             title="Attendance"
-            value="92%"
+            value={loading ? "Loading..." : `${stats.attendance}%`}
             description="Overall attendance rate"
             icon={Calendar}
           />
           <Card
-            title="Assignments"
-            value="4"
-            description="Pending submissions"
-            icon={FileText}
-          />
-          <Card
             title="GPA"
-            value="3.8"
+            value={loading ? "Loading..." : stats.gpa.toFixed(2)}
             description="Current semester GPA"
             icon={Award}
           />
@@ -129,39 +151,47 @@ const StudentDashboard = () => {
                 <th>Course Code</th>
                 <th>Course Name</th>
                 <th>Instructor</th>
-                <th>Credits</th>
-                <th>Grade</th>
+                <th>Status</th>
+                <th>Department</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>CS101</td>
-                <td>Introduction to Programming</td>
-                <td>Dr. John Smith</td>
-                <td>3</td>
-                <td>A</td>
-              </tr>
-              <tr>
-                <td>MATH201</td>
-                <td>Calculus II</td>
-                <td>Dr. Sarah Johnson</td>
-                <td>4</td>
-                <td>A-</td>
-              </tr>
-              <tr>
-                <td>ENG101</td>
-                <td>English Composition</td>
-                <td>Prof. Michael Brown</td>
-                <td>3</td>
-                <td>B+</td>
-              </tr>
-              <tr>
-                <td>PHY101</td>
-                <td>Physics I</td>
-                <td>Dr. Emily Davis</td>
-                <td>4</td>
-                <td>A</td>
-              </tr>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                    Loading courses...
+                  </td>
+                </tr>
+              ) : stats.courses.length > 0 ? (
+                stats.courses.map((course, index) => (
+                  <tr key={course._id || index}>
+                    <td>{course.courseCode || "N/A"}</td>
+                    <td>{course.courseName || course.name || "N/A"}</td>
+                    <td>{course.createdBy?.name || "TBA"}</td>
+                    <td>
+                      <span
+                        style={{
+                          padding: "4px 12px",
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          backgroundColor: course.isActive !== false ? "#d4edda" : "#f8d7da",
+                          color: course.isActive !== false ? "#155724" : "#721c24",
+                        }}
+                      >
+                        {course.isActive !== false ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>{course.department?.departmentName || "N/A"}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                    No courses enrolled
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

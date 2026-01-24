@@ -1,8 +1,42 @@
 import Layout from "../components/Layout";
 import Card from "../components/Card";
-import { BookOpen, Users, Calendar, FileText } from "lucide-react";
+import { BookOpen, Users, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getTeacherDashboardStats } from "../services/teacherDashboardService";
 
 const TeacherDashboard = () => {
+  const [stats, setStats] = useState({
+    myClasses: 0,
+    totalStudents: 0,
+    pendingGrades: 0,
+    todayClasses: 0,
+    courses: [],
+    allocations: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // Get user from localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const teacherId = user._id || user.id;
+
+        if (teacherId) {
+          const dashboardStats = await getTeacherDashboardStats(teacherId);
+          setStats(dashboardStats);
+        }
+      } catch (error) {
+        console.error("Error loading teacher dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   return (
     <>
       <style>{`
@@ -95,25 +129,19 @@ const TeacherDashboard = () => {
         <div className="dashboard-grid">
           <Card
             title="My Classes"
-            value="5"
+            value={loading ? "Loading..." : stats.myClasses}
             description="Active classes this semester"
             icon={BookOpen}
           />
           <Card
             title="Total Students"
-            value="150"
+            value={loading ? "Loading..." : stats.totalStudents}
             description="Students across all classes"
             icon={Users}
           />
           <Card
-            title="Pending Grades"
-            value="12"
-            description="Assignments to grade"
-            icon={FileText}
-          />
-          <Card
             title="Today's Classes"
-            value="3"
+            value={loading ? "Loading..." : stats.todayClasses}
             description="Scheduled for today"
             icon={Calendar}
           />
@@ -129,39 +157,57 @@ const TeacherDashboard = () => {
                 <th>Course Code</th>
                 <th>Course Name</th>
                 <th>Students</th>
-                <th>Schedule</th>
-                <th>Room</th>
+                <th>Department</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>CS101</td>
-                <td>Introduction to Programming</td>
-                <td>45</td>
-                <td>Mon, Wed, Fri 10:00 AM</td>
-                <td>Room 201</td>
-              </tr>
-              <tr>
-                <td>CS201</td>
-                <td>Data Structures</td>
-                <td>38</td>
-                <td>Tue, Thu 2:00 PM</td>
-                <td>Room 305</td>
-              </tr>
-              <tr>
-                <td>CS301</td>
-                <td>Database Systems</td>
-                <td>32</td>
-                <td>Mon, Wed 3:00 PM</td>
-                <td>Lab 102</td>
-              </tr>
-              <tr>
-                <td>CS401</td>
-                <td>Software Engineering</td>
-                <td>25</td>
-                <td>Tue, Thu 10:00 AM</td>
-                <td>Room 401</td>
-              </tr>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                    Loading courses...
+                  </td>
+                </tr>
+              ) : stats.courses.length > 0 ? (
+                stats.courses.map((course, index) => {
+                  // Count students for this course from allocations
+                  const courseAllocations = stats.allocations.filter(
+                    a => a.course?._id === course._id || a.course === course._id
+                  );
+                  const studentCount = courseAllocations.length > 0 
+                    ? courseAllocations.reduce((sum, a) => sum + (a.students?.length || 35), 0)
+                    : 0;
+
+                  return (
+                    <tr key={course._id || index}>
+                      <td>{course.courseCode || "N/A"}</td>
+                      <td>{course.courseName || course.name || "N/A"}</td>
+                      <td>{studentCount}</td>
+                      <td>{course.department?.departmentName || course.department || "N/A"}</td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "4px 12px",
+                            borderRadius: "12px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            backgroundColor: course.isActive !== false ? "#d4edda" : "#f8d7da",
+                            color: course.isActive !== false ? "#155724" : "#721c24",
+                          }}
+                        >
+                          {course.isActive !== false ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                    No courses assigned
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -7,7 +7,8 @@ import {
   fetchStudentAttendance,
 } from "../services/attendanceService.jsx";
 
-const StudentAttendanceView = ({ studentId }) => {
+const StudentAttendanceView = ({ studentId: propStudentId }) => {
+  const [studentId, setStudentId] = useState(propStudentId);
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,16 +22,25 @@ const StudentAttendanceView = ({ studentId }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    if (studentId) {
-      fetchStudentInfo();
-      fetchAttendance();
+    // If no studentId prop, get from localStorage
+    let finalStudentId = propStudentId;
+    if (!finalStudentId) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      finalStudentId = user._id || user.id;
+    }
+    
+    setStudentId(finalStudentId);
+    
+    if (finalStudentId) {
+      fetchStudentInfo(finalStudentId);
+      fetchAttendance(finalStudentId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentId]);
+  }, [propStudentId]);
 
-  const fetchStudentInfo = async () => {
+  const fetchStudentInfo = async (id = studentId) => {
     try {
-      const response = await fetchStudentInformation(studentId);
+      const response = await fetchStudentInformation(id);
       const data = response;
 
       if (data.success) {
@@ -41,19 +51,22 @@ const StudentAttendanceView = ({ studentId }) => {
     }
   };
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = async (id = studentId) => {
     setLoading(true);
     try {
-      const data = await fetchStudentAttendance(studentId, {
+      const data = await fetchStudentAttendance(id, {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
       });
-      console.log(data);
+      console.log('Attendance data received:', data);
       if (data.success) {
-        setAttendance(data.data || []);
+        const attendanceRecords = data.data || [];
+        console.log('Setting attendance records:', attendanceRecords);
+        setAttendance(attendanceRecords);
         const uniqueSubjects = [
-          ...new Set(data.data?.map((att) => att.subject?.subjectName)),
+          ...new Set(attendanceRecords?.map((att) => att.subject?.subjectName)),
         ].filter(Boolean);
+        console.log('Unique subjects:', uniqueSubjects);
         setSubjects(uniqueSubjects);
       }
     } catch (err) {
@@ -260,7 +273,7 @@ const StudentAttendanceView = ({ studentId }) => {
                   <span style={{ fontWeight: "bold" }}>
                     Department:
                   </span>{" "}
-                  {studentInfo.department.departmentName || "N/A"}
+                  {studentInfo.department?.departmentName || "N/A"}
                 </div>
               </div>
             </div>

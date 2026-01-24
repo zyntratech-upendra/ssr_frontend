@@ -138,9 +138,13 @@ export const fetchStudentAttendance = async (studentId, filters = {}) => {
     const query = params.toString();
     if (query) url += `?${query}`;
 
+    console.log('Fetching attendance from:', url);
     const response = await api.get(url);
-    return response.data; // same as first function
+    console.log('Attendance response:', response.data);
+    
+    return response.data; // Returns {success: true, data: [...], summary: {...}}
   } catch (error) {
+    console.error('Error fetching student attendance:', error);
     throw error.response?.data || { message: error.message || 'Network error' };
   }
 };

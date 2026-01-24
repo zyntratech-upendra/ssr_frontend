@@ -3,11 +3,44 @@ import Sidebar from "../components/Sidebar";
 import { Users, BookOpen, Building, FileText } from "lucide-react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate } from "react-router-dom";
+import {
+  getAllUsers,
+  getDashboardStats,
+} from "../services/adminDashboardService";
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalDepartments: 0,
+    totalCourses: 0,
+    pendingReports: 0,
+  });
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // Fetch statistics
+        const statsData = await getDashboardStats();
+        setStats(statsData);
+
+        // Fetch users with limit for table display
+        const usersData = await getAllUsers({ limit: 10 });
+        setUsers(usersData);
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to logout?")) return;
@@ -220,25 +253,33 @@ const AdminDashboard = () => {
             <div className="dashboard-card">
               <Users className="card-icon" size={40} />
               <h5>Total Users</h5>
-              <p style={{ color: "#666" }}>1,245 Active users</p>
+              <p style={{ color: "#666", fontSize: "20px", fontWeight: "600" }}>
+                {loading ? "Loading..." : stats.totalUsers}
+              </p>
             </div>
 
             <div className="dashboard-card">
               <Building className="card-icon" size={40} />
               <h5>Departments</h5>
-              <p style={{ color: "#666" }}>12 Academic departments</p>
+              <p style={{ color: "#666", fontSize: "20px", fontWeight: "600" }}>
+                {loading ? "Loading..." : stats.totalDepartments}
+              </p>
             </div>
 
             <div className="dashboard-card">
               <BookOpen className="card-icon" size={40} />
               <h5>Courses</h5>
-              <p style={{ color: "#666" }}>85 Active courses</p>
+              <p style={{ color: "#666", fontSize: "20px", fontWeight: "600" }}>
+                {loading ? "Loading..." : stats.totalCourses}
+              </p>
             </div>
 
             <div className="dashboard-card">
               <FileText className="card-icon" size={40} />
               <h5>Reports</h5>
-              <p style={{ color: "#666" }}>23 Pending reports</p>
+              <p style={{ color: "#666", fontSize: "20px", fontWeight: "600" }}>
+                {loading ? "Loading..." : stats.pendingReports}
+              </p>
             </div>
           </div>
 
@@ -256,34 +297,46 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>John Smith</td>
-                  <td>john.smith@college.edu</td>
-                  <td>Teacher</td>
-                  <td>Computer Science</td>
-                  <td>Active</td>
-                </tr>
-                <tr>
-                  <td>Sarah Johnson</td>
-                  <td>sarah.j@college.edu</td>
-                  <td>Teacher</td>
-                  <td>Mathematics</td>
-                  <td>Active</td>
-                </tr>
-                <tr>
-                  <td>Michael Brown</td>
-                  <td>m.brown@college.edu</td>
-                  <td>Student</td>
-                  <td>Engineering</td>
-                  <td>Active</td>
-                </tr>
-                <tr>
-                  <td>Emily Davis</td>
-                  <td>emily.d@college.edu</td>
-                  <td>Teacher</td>
-                  <td>Physics</td>
-                  <td>Active</td>
-                </tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                      Loading users...
+                    </td>
+                  </tr>
+                ) : users.length > 0 ? (
+                  users.map((user, index) => (
+                    <tr key={user._id || index}>
+                      <td>{user.name || "N/A"}</td>
+                      <td>{user.email || "N/A"}</td>
+                      <td style={{ textTransform: "capitalize" }}>
+                        {user.role || "N/A"}
+                      </td>
+                      <td>{user.department?.name || user.department || "N/A"}</td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "4px 12px",
+                            borderRadius: "12px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            backgroundColor:
+                              user.status === "active" ? "#d4edda" : "#f8d7da",
+                            color:
+                              user.status === "active" ? "#155724" : "#721c24",
+                          }}
+                        >
+                          {user.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                      No users found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
