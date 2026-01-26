@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getApplicationById, updateOfficeUseOnly } from '../services/admissonService';
 import { getAllDepartments } from '../services/departmentService';
-import { fetchBatchesByDepartment, fetchSectionsByDepartment } from '../services/teacherAllocationService.jsx';
+import { fetchBatchesByDepartment, fetchSectionsByDepartment, fetchCoursesByDepartment } from '../services/teacherAllocationService.jsx';
 import { adminRegisterUser } from '../services/authService';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
@@ -32,9 +32,11 @@ function ApplicationDetails() {
   const [portalNumber, setPortalNumber] = useState('');
   const [savingOffice, setSavingOffice] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
   const [sections, setSections] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [nameInput, setNameInput] = useState('');
@@ -68,15 +70,20 @@ function ApplicationDetails() {
           if (prefDept) {
             setSelectedDepartment(prefDept);
             try {
+              const respC = await fetchCoursesByDepartment(prefDept);
+              if (respC && respC.success) setCourses(respC.data || []);
+              else if (Array.isArray(respC)) setCourses(respC);
+              
               const respB = await fetchBatchesByDepartment(prefDept);
               if (respB && respB.success) setBatches(respB.data || []);
               else if (Array.isArray(respB)) setBatches(respB);
+              
               const respS = await fetchSectionsByDepartment(prefDept);
               if (respS && respS.success) setSections(respS.data || []);
               else if (Array.isArray(respS)) setSections(respS);
               if (prefSection) setSelectedSection(prefSection);
             } catch (err) {
-              console.error('Failed to preload batches/sections', err);
+              console.error('Failed to preload courses/batches/sections', err);
             }
           }
         }
@@ -199,30 +206,39 @@ function ApplicationDetails() {
                   </button>
                 ) : (
                   <>
-                    <div style={{ ...styles.inputGrid, gridTemplateColumns: '1fr 1fr 1fr' }}>
+                    <div style={{ ...styles.inputGrid, gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
                       <select
                         style={styles.input}
                         value={selectedDepartment}
                         onChange={async (e) => {
                           const depId = e.target.value;
                           setSelectedDepartment(depId);
+                          setSelectedCourse('');
                           setSelectedBatch('');
                           setSelectedSection('');
+                          setCourses([]);
                           setSections([]);
                           if (depId) {
                             try {
+                              const respC = await fetchCoursesByDepartment(depId);
+                              if (respC && respC.success) setCourses(respC.data || []);
+                              else if (Array.isArray(respC)) setCourses(respC);
+                              
                               const resp = await fetchBatchesByDepartment(depId);
                               if (resp && resp.success) setBatches(resp.data || []);
                               else if (Array.isArray(resp)) setBatches(resp);
+                              
                               const respS = await fetchSectionsByDepartment(depId);
                               if (respS && respS.success) setSections(respS.data || []);
                               else if (Array.isArray(respS)) setSections(respS);
                             } catch (err) {
-                              console.error('Failed to fetch batches/sections', err);
+                              console.error('Failed to fetch courses/batches/sections', err);
+                              setCourses([]);
                               setBatches([]);
                               setSections([]);
                             }
                           } else {
+                            setCourses([]);
                             setBatches([]);
                           }
                         }}
@@ -230,6 +246,18 @@ function ApplicationDetails() {
                         <option value="">Select Department</option>
                         {departments.map((d) => (
                           <option key={d._id} value={d._id}>{d.departmentName || d.name || d._id}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        style={styles.input}
+                        value={selectedCourse}
+                        onChange={(e) => setSelectedCourse(e.target.value)}
+                        disabled={!courses.length}
+                      >
+                        <option value="">Select Course</option>
+                        {courses.map((c) => (
+                          <option key={c._id} value={c._id}>{c.courseName || c.name || c._id}</option>
                         ))}
                       </select>
 
@@ -282,7 +310,7 @@ function ApplicationDetails() {
                     <button
                       style={styles.saveBtn}
                       disabled={
-                        savingOffice || regSubmitting || accountCreated || !admissionNo || !selectedDepartment || !selectedBatch || !selectedSection || !nameInput || !emailInput
+                        savingOffice || regSubmitting || accountCreated || !admissionNo || !selectedDepartment || !selectedCourse || !selectedBatch || !selectedSection || !nameInput || !emailInput
                       }
                       onClick={async () => {
                         setRegMessage('');
@@ -291,6 +319,7 @@ function ApplicationDetails() {
                            const saveResp = await updateOfficeUseOnly(data.applicationId, {
       studentIdGenerated: admissionNo,
       portalNumber,
+      course: selectedCourse,
       department: selectedDepartment,
       batch: selectedBatch,
       section: selectedSection,
@@ -304,12 +333,13 @@ function ApplicationDetails() {
                             return;
                           }
 
-                          // Auto-create student account if department & batch selected
+                          // Auto-create student account if course, department & batch selected
                           const payload = {
                             name: nameInput || data.studentDetails?.studentName || '',
                             email: emailInput || data.contactDetails?.email || '',
                             password: 'SSR@159',
                             role: 'student',
+                            course: selectedCourse,
                             department: selectedDepartment,
                             batch: selectedBatch,
                             section: selectedSection,
@@ -341,6 +371,7 @@ function ApplicationDetails() {
           ...(prev?.officeUseOnly || {}),
           studentIdGenerated: admissionNo,
           portalNumber,
+          course: selectedCourse,
           department: selectedDepartment,
           batch: selectedBatch,
           section: selectedSection,

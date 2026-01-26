@@ -5,7 +5,8 @@ import { UserPlus, CheckCircle, AlertCircle, ClipboardList } from "lucide-react"
 import Sidebar from "../components/Sidebar";
 import { adminRegisterUser, getAllUsers } from "../services/authService";
 import { getAllDepartments } from "../services/departmentService";
-import { fetchBatchesByDepartment, fetchSectionsByDepartment } from '../services/teacherAllocationService.jsx';
+import { fetchBatchesByDepartment, fetchSectionsByDepartment, fetchCoursesByDepartment } from '../services/teacherAllocationService.jsx';
+import { getAllCourses, fetchDepartementsByCousresData, fetchSemsterByDepartment } from '../services/feeCreateService.jsx';
 
 const AdminRegisterUser = () => {
   const location = useLocation();
@@ -15,8 +16,10 @@ const AdminRegisterUser = () => {
     password: "",
     role: "student",
     department: "",
+    course: "",
     batch: "",
     section: "",
+    semester: "",
     phone: "",
     enrollmentId: "",
     employeeId: "",
@@ -38,22 +41,27 @@ const AdminRegisterUser = () => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [recentUsers, setRecentUsers] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
   const [batches, setBatches] = useState([]);
+  const [semesters, setSemesters] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [photoPreview, setPhotoPreview] = useState(null);
 
   // 🕐 Initial Load
   useEffect(() => {
     fetchRecentUsers();
-    fetchDepartments();
+    fetchAllCoursesList();
+    fetchAllDepartmentsList();
     if (location && location.state && location.state.prefill) {
       const p = location.state.prefill;
       setFormData((prev) => ({ ...prev, ...p }));
       if (p.department) {
         fetchBatches(p.department);
         fetchSections(p.department);
+        fetchSemesters(p.department);
       }
       try { window.history.replaceState({}, document.title); } catch (e) {}
     }
@@ -68,16 +76,123 @@ const AdminRegisterUser = () => {
     }
   };
 
+  const fetchAllDepartmentsList = async () => {
+    try {
+      const response = await getAllDepartments();
+      if (response.success) {
+        setDepartments(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
+  const fetchAllCoursesList = async () => {
+    try {
+      const response = await getAllCourses();
+      if (response.success) {
+        setAllCourses(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+    }
+  };
+
+  const fetchSemesters = async (departmentId) => {
+    try {
+      const response = await fetchSemsterByDepartment(departmentId);
+      if (response.success) {
+        setSemesters(response.data);
+      } else {
+        setSemesters([]);
+      }
+    } catch (err) {
+      setSemesters([]);
+    }
+  };
+
+  const handleCourseChange = async (e) => {
+    const courseId = e.target.value;
+    
+    if (!courseId) {
+      setFormData({
+        ...formData,
+        course: courseId,
+        department: "",
+        batch: "",
+        section: "",
+        semester: "",
+      });
+      setDepartments([]);
+      setBatches([]);
+      setSections([]);
+      setSemesters([]);
+      return;
+    }
+
+    try {
+      const response = await fetchDepartementsByCousresData(courseId);
+      if (response.success) {
+        const departmentId = response.data._id;
+        setDepartments([response.data]);
+        
+        setFormData({
+          ...formData,
+          course: courseId,
+          department: departmentId,
+          batch: "",
+          section: "",
+          semester: "",
+        });
+
+        fetchBatches(departmentId);
+        fetchSections(departmentId);
+        fetchSemesters(departmentId);
+      }
+    } catch (error) {
+      console.error("Failed to fetch department:", error);
+      setMessage({ type: "error", text: "Failed to fetch department for this course" });
+    }
+  };
+
+  const handleBatchChange = (e) => {
+    const batchId = e.target.value;
+    setFormData({
+      ...formData,
+      batch: batchId,
+      section: "",
+    });
+  };
+
+  const handleDepartmentChange = (e) => {
+    const departmentId = e.target.value;
+    setFormData({
+      ...formData,
+      department: departmentId,
+      batch: "",
+      section: "",
+      semester: "",
+    });
+    setBatches([]);
+    setSections([]);
+    setSemesters([]);
+    if (departmentId) {
+      fetchBatches(departmentId);
+      fetchSections(departmentId);
+      fetchSemesters(departmentId);
+    }
+  };
+
   const isFormComplete = () => {
     if (!formData.name || !formData.email || !formData.password || !formData.role) return false;
-    if (!formData.department || !formData.phone) return false;
+    if (!formData.phone) return false;
 
     if (formData.role === 'student') {
-      if (!formData.batch || !formData.section || !formData.enrollmentId) return false;
+      if (!formData.course || !formData.department || !formData.batch || !formData.section || !formData.enrollmentId) return false;
     }
 
     if (formData.role === 'teacher') {
-      if (!formData.employeeId) return false;
+      if (!formData.department || !formData.employeeId) return false;
       if (!formData.joiningYear || !formData.designation || !formData.dob) return false;
       if (!formData.photoFile) return false;
       if (!formData.bloodGroup || !formData.officialDetails || !formData.panNumber || !formData.aadhaarNumber) return false;
@@ -86,15 +201,6 @@ const AdminRegisterUser = () => {
     }
 
     return true;
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await getAllDepartments();
-      if (response.success) setDepartments(response.data);
-    } catch (error) {
-      console.error("Error fetching departments:", error);
-    }
   };
 
   const fetchBatches = async (departmentId) => {
@@ -123,22 +229,6 @@ const AdminRegisterUser = () => {
     } catch (err) {
       console.error('Failed to fetch sections:', err);
       setSections([]);
-    }
-  };
-
-  const handleDepartmentChange = (e) => {
-    const departmentId = e.target.value;
-    setFormData({
-      ...formData,
-      department: departmentId,
-      batch: "",
-      section: "",
-    });
-    setBatches([]);
-    setSections([]);
-    if (departmentId) {
-      fetchBatches(departmentId);
-      fetchSections(departmentId);
     }
   };
 
@@ -196,7 +286,7 @@ const AdminRegisterUser = () => {
         setMessage({ type: "success", text: "User registered successfully!" });
         setFormData({
           name: '', email: '', password: '', role: 'student', department: '',
-          batch: '', section: '', phone: '', enrollmentId: '', employeeId: '',
+          course: '', batch: '', section: '', phone: '', enrollmentId: '', employeeId: '',
           canRegisterStudents: false, joiningYear: "", designation: '', dob: '',
           photoFile: null, photo: '', bloodGroup: '', officialDetails: '',
           panNumber: '', aadhaarNumber: '', salary: '', address: '', remarks: '',
@@ -597,22 +687,66 @@ const AdminRegisterUser = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="form-label-strong">Department <span style={{ color: "#ef4444" }}>*</span></label>
-                  <select
-                    name="department"
-                    className="form-select form-input"
-                    value={formData.department}
-                    onChange={handleDepartmentChange}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dep) => (
-                      <option key={dep._id} value={dep._id}>
-                        {dep.departmentName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {formData.role === 'student' && (
+                  <>
+                    <div>
+                      <label className="form-label-strong">Course <span style={{ color: "#ef4444" }}>*</span></label>
+                      <select
+                        name="course"
+                        className="form-select form-input"
+                        value={formData.course}
+                        onChange={handleCourseChange}
+                        required
+                      >
+                        <option value="">Select Course</option>
+                        {allCourses.map((course) => (
+                          <option key={course._id} value={course._id}>
+                            {course.courseName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="form-label-strong">Department <span style={{ color: "#ef4444" }}>*</span></label>
+                      <select
+                        name="department"
+                        className="form-select form-input"
+                        value={formData.department}
+                        onChange={handleDepartmentChange}
+                        disabled={!formData.course}
+                        required
+                      >
+                        <option value="">Auto-populated from Course</option>
+                        {departments.map((dep) => (
+                          <option key={dep._id} value={dep._id}>
+                            {dep.departmentName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {formData.role === 'teacher' && (
+                  <div>
+                    <label className="form-label-strong">Department <span style={{ color: "#ef4444" }}>*</span></label>
+                    <select
+                      name="department"
+                      className="form-select form-input"
+                      value={formData.department}
+                      onChange={handleDepartmentChange}
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((dep) => (
+                        <option key={dep._id} value={dep._id}>
+                          {dep.departmentName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="form-label-strong">Phone Number <span style={{ color: "#ef4444" }}>*</span></label>
@@ -635,13 +769,33 @@ const AdminRegisterUser = () => {
                       name="batch"
                       className="form-select form-input"
                       value={formData.batch}
-                      onChange={handleChange}
+                      onChange={handleBatchChange}
                       disabled={!formData.department}
+                      required
                     >
                       <option value="">Select Batch</option>
                       {batches.map((batch) => (
                         <option key={batch._id} value={batch._id}>
                           {batch.batchName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label-strong">Semester <span style={{ color: "#ef4444" }}>*</span></label>
+                    <select
+                      name="semester"
+                      className="form-select form-input"
+                      value={formData.semester}
+                      onChange={handleChange}
+                      disabled={!formData.department}
+                      required
+                    >
+                      <option value="">Select Semester</option>
+                      {semesters.map((sem) => (
+                        <option key={sem._id} value={sem._id}>
+                          Semester {sem.semesterName}
                         </option>
                       ))}
                     </select>
@@ -655,6 +809,7 @@ const AdminRegisterUser = () => {
                       value={formData.section}
                       onChange={handleChange}
                       disabled={!formData.department}
+                      required
                     >
                       <option value="">Select Section</option>
                       {sections.map((sec) => (
@@ -674,6 +829,7 @@ const AdminRegisterUser = () => {
                       placeholder="Enter enrollment ID"
                       value={formData.enrollmentId}
                       onChange={handleChange}
+                      required
                     />
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit2, Save, X, DollarSign } from 'lucide-react';
+import { Search, Edit2, Save, X, DollarSign, AlertCircle } from 'lucide-react';
 import { fetchStudentFee ,handleFeeEdit,handlesSaveDiscount} from '../services/feeCreateService';
 
 
@@ -28,6 +28,7 @@ export default function StudentFeeList() {
     try {
       const response = await fetchStudentFee();
       const data = response.studentFees;
+      console.log(data)
       if (response.success) {
         setStudentFees(data);
         setFilteredFees(data);
@@ -120,8 +121,17 @@ export default function StudentFeeList() {
       </div>
 
       {filteredFees.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          No student fees found
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <AlertCircle className="w-16 h-16 text-gray-300 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            {studentFees.length === 0 ? 'No Fees Assigned' : 'No Results Found'}
+          </h3>
+          <p className="text-gray-500 text-center max-w-sm">
+            {studentFees.length === 0 
+              ? 'No student fees have been assigned yet. Create and assign fees to students to view them here.'
+              : `No students match "${searchTerm}". Try adjusting your search criteria.`
+            }
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -129,6 +139,7 @@ export default function StudentFeeList() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Student Name</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Course</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Branch</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Semester</th>
@@ -143,10 +154,11 @@ export default function StudentFeeList() {
               {filteredFees.map((fee) => (
                 <tr key={fee._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm text-gray-900">{fee.studentName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{fee.department.departmentName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{fee.batch.batchName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{fee.semester.semesterName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{fee.academicYear}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fee.course?.courseName || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fee.department?.departmentName || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fee.batch?.batchName || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fee.semester?.semesterName || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fee.academicYear || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {editingId === fee._id ? (
                       <input

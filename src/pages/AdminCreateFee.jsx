@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 
 import { PlusCircle, Trash2 } from 'lucide-react';
-import { getAllDepartments } from '../services/departmentService';
 import { fetchBatchesByDepartment } from '../services/teacherAllocationService.jsx';
-import { fetchSemsterByDepartment ,createFee} from '../services/feeCreateService.jsx';
+import { fetchSemsterByDepartment ,createFee,getAllCourses,fetchDepartementsByCousresData} from '../services/feeCreateService.jsx';
 export default function FeeCreationForm({ onSuccess }) {
   const [formData, setFormData] = useState({
     department: '',
+    course: '',
     batch: '',
     semester: '',
     academicYear: '',
@@ -14,6 +14,7 @@ export default function FeeCreationForm({ onSuccess }) {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [courses, setCourses] = useState([]);
   const [batches,setBatches] = useState([]);
   const [departements,setDepartments] = useState([]);
   const [semesters,setSemesters] = useState([]);
@@ -30,42 +31,103 @@ export default function FeeCreationForm({ onSuccess }) {
       [e.target.name]: e.target.value
     });
   };
- const handleDepartmentChange = (e) => {
-    const departmentId = e.target.value;
-    
-  // Department changed
-  setFormData({
-      ...formData,
-      department: departmentId,
+  
+const handleCourseChange = async (e) => {
+  const courseId = e.target.value;
+
+  if (!courseId) {
+    setDepartments([]);
+    setBatches([]);
+    setSemesters([]);
+    setFormData(prev => ({
+      ...prev,
+      course: courseId,
+      department: '',
       batch: '',
-      semester: '',
-    });
-    if (departmentId) {
-      console.group(departmentId)
-      fetchBatches(departmentId);
-      fetchSemster(departmentId);
+      semester: ''
+    }));
+    return;
+  }
+
+  try {
+    const response = await fetchDepartmentsbyCourses(courseId);
+
+    if (response && response.success) {
+      setFormData(prev => ({
+        ...prev,
+        course: courseId,
+        department: ''
+      }));
     }
-  };
+  } catch (error) {
+    console.error("Failed to fetch departments");
+  }
+};
+
 
  useEffect(() => {
-  fetchDepartments();
+  fetchAllCourses();
 }, []);
 
-
-
-  const fetchDepartments = async () => {
+  const fetchAllCourses = async () => {
       try {
-        const response = await getAllDepartments();
+        const response = await getAllCourses();
+        console.log(response)
         if (response.success) {
-          setDepartments(response.data);
+          setCourses(response.data);
         } else {
-          console.error('Error fetching departments:', response.message);
+          console.error('Error fetching courses:', response.message);
         }
       } catch (error) {
-        console.error('Error fetching departments:', error);
+        console.error('Error fetching courses:', error);
       }
     };
 
+const fetchDepartmentsbyCourses = async (courseId) => {
+      try {
+        const response = await fetchDepartementsByCousresData(courseId)
+        console.log(response)
+        if (response.success) {
+          setDepartments(response.data);
+          return response;
+        } else {
+          console.error('Error fetching departments:', response.message);
+          return null;
+        }
+      }
+
+      catch (error) {
+        console.error('Error fetching departments:', error);
+        return null;
+      }
+    };
+
+const handleDepartmentChange = async (e) => {
+  const departmentId = e.target.value;
+  
+  if (!departmentId) {
+    setBatches([]);
+    setSemesters([]);
+    setFormData(prev => ({
+      ...prev,
+      department: departmentId,
+      batch: '',
+      semester: ''
+    }));
+    return;
+  }
+
+  setFormData(prev => ({
+    ...prev,
+    department: departmentId
+  }));
+
+  fetchBatches(departmentId);
+  fetchSemster(departmentId);
+};
+
+
+  
     
        const fetchBatches = async (departmentId) => {
           try {
@@ -101,19 +163,23 @@ export default function FeeCreationForm({ onSuccess }) {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
-    console.log(formData)
+    
+    const submitData = {
+      ...formData,
+      amount: parseFloat(formData.amount)
+    };
+    
+    console.log(submitData);
 
     try {
-      const response = await createFee(formData)
-      console.log(response)
-
-
-      const data = await response.json();
+      const data = await createFee(submitData);
+      console.log(data);
 
       if (data.success) {
         setMessage({ type: 'success', text: `Fee created successfully for ${data.studentsAssigned} students` });
         setFormData({
           department: '',
+          course: '',
           batch: '',
           semester: '',
           academicYear: '',
@@ -124,7 +190,8 @@ export default function FeeCreationForm({ onSuccess }) {
         setMessage({ type: 'error', text: data.message || 'Failed to create fee' });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error creating fee. Please try again.' });
+      console.error('Error creating fee:', error);
+      setMessage({ type: 'error', text: error.message || 'Error creating fee. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -133,6 +200,7 @@ export default function FeeCreationForm({ onSuccess }) {
   const handleReset = () => {
     setFormData({
       department: '',
+      course: '',
       batch: '',
       semester: '',
       academicYear: '',
@@ -157,6 +225,24 @@ export default function FeeCreationForm({ onSuccess }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              Course <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="course"
+              value={formData.course}
+              onChange={handleCourseChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select Course</option>
+              {courses.map(course => (
+                <option key={course._id} value={course._id}>{course.courseName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Department <span className="text-red-500">*</span>
             </label>
             <select
@@ -164,9 +250,10 @@ export default function FeeCreationForm({ onSuccess }) {
               value={formData.department}
               onChange={handleDepartmentChange}
               required
+              disabled={!formData.course || departements.length === 0}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">Select Branch</option>
+              <option value="">Select Department</option>
               {departements.map(branch => (
                 <option key={branch._id} value={branch._id}>{branch.departmentName}</option>
               ))}
@@ -182,6 +269,7 @@ export default function FeeCreationForm({ onSuccess }) {
               value={formData.batch}
               onChange={handleChange}
               required
+              disabled={!formData.course}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Select Batch</option>
@@ -200,6 +288,7 @@ export default function FeeCreationForm({ onSuccess }) {
               value={formData.semester}
               onChange={handleChange}
               required
+              disabled={!formData.course}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Select Semester</option>

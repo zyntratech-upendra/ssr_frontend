@@ -340,6 +340,11 @@ const Sidebar = ({ onToggle }) => {
                 icon: CopySlash,
                 path: "/admin/fees",
               },
+              {
+                name: "Assign Fees",
+                icon: CopySlash,
+                path: "/admin/assign-fees",
+              },
             ],
           },
           {

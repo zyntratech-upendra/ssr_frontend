@@ -82,4 +82,25 @@ export const fetchStudentFee = async () => {
 };
 
 
+export const getAllCourses = async () => {
+  try {
+    const response = await api.get('/api/courses');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
+
+export const fetchDepartementsByCousresData = async (courseId) => {
+  try {
+    const response = await api.get(`/api/departments/course/${courseId}`);
+
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
+
 export default api

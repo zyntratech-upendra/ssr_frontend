@@ -56,6 +56,7 @@ import ApplicationSummary from "./pages/ApplicationSummary";
 import ApplicationDetails from "./pages/ApplicationDetails";
 import ApplicationListing from "./pages/ApplicationListing";
 import CoordinatorManagement from "./pages/CoordinatorManagement";
+
 const RootRedirect = () => {
   const { isAuthenticated, user, loading } = useAuth();
 
@@ -297,6 +298,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+         
           <Route
             path="/student/payfees"
             element={

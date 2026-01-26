@@ -10,6 +10,15 @@ const getAuthHeaders = () => {
 
 const handleResponse = async (response) => {
   const data = await response.json();
+  
+  // If token is invalid (401), clear it and redirect to login
+  if (response.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    throw new Error(data.message || 'Unauthorized - Please login again');
+  }
+  
   if (!response.ok) {
     throw new Error(data.error || data.message || 'Request failed');
   }

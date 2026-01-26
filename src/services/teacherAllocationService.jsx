@@ -113,4 +113,13 @@ export const fetchSectionsByDepartment = async (departmentId) => {
   }
 };
 
+export const fetchCoursesByDepartment = async (departmentId) => {
+  try {
+    const response = await api.get(`/api/courses?department=${departmentId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
 export default api;
