@@ -20,6 +20,7 @@ const TakeAttendance = ({ teacherId }) => {
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loadingFull, setLoadingFull] = useState(true);
+  const [attendanceAlreadyTaken, setAttendanceAlreadyTaken] = useState(false);
 
   useEffect(() => {
     setLoadingFull(true);
@@ -83,8 +84,32 @@ const TakeAttendance = ({ teacherId }) => {
   const handleTimetableSelect = (timetable) => {
     setSelectedTimetable(timetable);
     setLoadingFull(true);
+    // Check if attendance already taken for this timetable on this date
+    checkIfAttendanceExists(timetable);
     setTimeout(() => setLoadingFull(false), 1000);
     fetchStudents(timetable.batch._id, timetable.section);
+  };
+
+  const checkIfAttendanceExists = async (timetable) => {
+    try {
+      const response = await fetch(
+        `/api/attendance?timetable=${timetable._id}&date=${selectedDate}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success && data.data && data.data.length > 0) {
+        setAttendanceAlreadyTaken(true);
+      } else {
+        setAttendanceAlreadyTaken(false);
+      }
+    } catch (err) {
+      console.error("Error checking attendance:", err);
+      setAttendanceAlreadyTaken(false);
+    }
   };
 
   const handleStatusChange = (studentId, status) => {
@@ -113,6 +138,15 @@ const TakeAttendance = ({ teacherId }) => {
       alert("No attendance to submit.");
       return;
     }
+
+    // Check if attendance already taken
+    if (attendanceAlreadyTaken) {
+      const proceed = window.confirm(
+        "⚠️ Attendance has already been marked for this period on this date.\n\nDo you want to update it?"
+      );
+      if (!proceed) return;
+    }
+
     const payload = {
       timetable: selectedTimetable._id,
       subject: selectedTimetable.subject?._id,
@@ -135,6 +169,7 @@ const TakeAttendance = ({ teacherId }) => {
         setSelectedTimetable(null);
         setStudents([]);
         setAttendanceRecords([]);
+        setAttendanceAlreadyTaken(false);
       } else {
         alert(response?.message || "Failed to mark attendance.");
       }

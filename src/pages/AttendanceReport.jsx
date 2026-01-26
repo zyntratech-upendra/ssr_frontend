@@ -808,7 +808,7 @@ const AttendanceReport = () => {
                               boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
                             }}
                           >
-                            {r.attendancePercentage?.toFixed(1) ?? 0}%
+                            {typeof r.attendancePercentage === 'number' ? r.attendancePercentage.toFixed(1) : parseFloat(r.attendancePercentage || 0).toFixed(1)}%
                           </span>
                         </td>
                       </tr>
