@@ -135,26 +135,29 @@ const AdminRegisterUser = () => {
 
     try {
       const response = await fetchDepartementsByCousresData(courseId);
-      if (response.success) {
-        const departmentId = response.data._id;
-        setDepartments([response.data]);
+      if (response.success && response.data && response.data.length > 0) {
+        setDepartments(response.data);
         
         setFormData({
           ...formData,
           course: courseId,
-          department: departmentId,
+          department: "",
           batch: "",
           section: "",
           semester: "",
         });
-
-        fetchBatches(departmentId);
-        fetchSections(departmentId);
-        fetchSemesters(departmentId);
+        
+        setBatches([]);
+        setSections([]);
+        setSemesters([]);
+      } else {
+        setMessage({ type: "error", text: "No departments found for this course" });
+        setDepartments([]);
       }
     } catch (error) {
       console.error("Failed to fetch department:", error);
       setMessage({ type: "error", text: "Failed to fetch department for this course" });
+      setDepartments([]);
     }
   };
 
