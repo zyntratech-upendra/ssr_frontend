@@ -79,8 +79,11 @@ const AdminRegisterUser = () => {
   const fetchAllDepartmentsList = async () => {
     try {
       const response = await getAllDepartments();
+      console.log('Departments fetched:', response);
       if (response.success) {
         setDepartments(response.data);
+      } else {
+        console.warn('Failed to fetch departments:', response);
       }
     } catch (error) {
       console.error("Error fetching departments:", error);
@@ -699,11 +702,15 @@ const AdminRegisterUser = () => {
                         required
                       >
                         <option value="">Select Course</option>
-                        {allCourses.map((course) => (
-                          <option key={course._id} value={course._id}>
-                            {course.courseName}
-                          </option>
-                        ))}
+                        {allCourses && allCourses.length > 0 ? (
+                          allCourses.map((course) => (
+                            <option key={course._id || Math.random()} value={course._id}>
+                              {course.courseName}
+                            </option>
+                          ))
+                        ) : (
+                          <option disabled>No courses available</option>
+                        )}
                       </select>
                     </div>
 
@@ -718,11 +725,15 @@ const AdminRegisterUser = () => {
                         required
                       >
                         <option value="">Auto-populated from Course</option>
-                        {departments.map((dep) => (
-                          <option key={dep._id} value={dep._id}>
-                            {dep.departmentName}
-                          </option>
-                        ))}
+                        {departments && departments.length > 0 ? (
+                          departments.map((dep) => (
+                            <option key={dep._id || Math.random()} value={dep._id}>
+                              {dep.departmentName}
+                            </option>
+                          ))
+                        ) : (
+                          <option disabled>No departments available</option>
+                        )}
                       </select>
                     </div>
                   </>
@@ -739,11 +750,15 @@ const AdminRegisterUser = () => {
                       required
                     >
                       <option value="">Select Department</option>
-                      {departments.map((dep) => (
-                        <option key={dep._id} value={dep._id}>
-                          {dep.departmentName}
-                        </option>
-                      ))}
+                      {departments && departments.length > 0 ? (
+                        departments.map((dep) => (
+                          <option key={dep._id || Math.random()} value={dep._id}>
+                            {dep.departmentName}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No departments available</option>
+                      )}
                     </select>
                   </div>
                 )}
@@ -774,11 +789,15 @@ const AdminRegisterUser = () => {
                       required
                     >
                       <option value="">Select Batch</option>
-                      {batches.map((batch) => (
-                        <option key={batch._id} value={batch._id}>
-                          {batch.batchName}
-                        </option>
-                      ))}
+                      {batches && batches.length > 0 ? (
+                        batches.map((batch) => (
+                          <option key={batch._id || Math.random()} value={batch._id}>
+                            {batch.batchName}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No batches available</option>
+                      )}
                     </select>
                   </div>
 
@@ -793,11 +812,15 @@ const AdminRegisterUser = () => {
                       required
                     >
                       <option value="">Select Semester</option>
-                      {semesters.map((sem) => (
-                        <option key={sem._id} value={sem._id}>
-                          Semester {sem.semesterName}
-                        </option>
-                      ))}
+                      {semesters && semesters.length > 0 ? (
+                        semesters.map((sem) => (
+                          <option key={sem._id || Math.random()} value={sem._id}>
+                            Semester {sem.semesterName}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No semesters available</option>
+                      )}
                     </select>
                   </div>
 
@@ -812,11 +835,15 @@ const AdminRegisterUser = () => {
                       required
                     >
                       <option value="">Select Section</option>
-                      {sections.map((sec) => (
-                        <option key={sec._id || sec.sectionName} value={sec.sectionName || sec._id}>
-                          {sec.sectionName || sec.section}
-                        </option>
-                      ))}
+                      {sections && sections.length > 0 ? (
+                        sections.map((sec, idx) => (
+                          <option key={sec._id || `section-${idx}`} value={sec.sectionName || sec._id}>
+                            {sec.sectionName || sec.section}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No sections available</option>
+                      )}
                     </select>
                   </div>
 
