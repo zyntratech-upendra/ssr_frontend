@@ -42,7 +42,9 @@ const AdminRegisterUser = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [recentUsers, setRecentUsers] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
+const [courseDepartments, setCourseDepartments] = useState([]);
+
   const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -81,7 +83,7 @@ const AdminRegisterUser = () => {
       const response = await getAllDepartments();
       console.log('Departments fetched:', response);
       if (response.success) {
-        setDepartments(response.data);
+        setAllDepartments(response.data);
       } else {
         console.warn('Failed to fetch departments:', response);
       }
@@ -116,6 +118,7 @@ const AdminRegisterUser = () => {
 
   const handleCourseChange = async (e) => {
     const courseId = e.target.value;
+    console.log('Selected course ID:', courseId);
     
     if (!courseId) {
       setFormData({
@@ -126,7 +129,7 @@ const AdminRegisterUser = () => {
         section: "",
         semester: "",
       });
-      setDepartments([]);
+     setCourseDepartments([]);
       setBatches([]);
       setSections([]);
       setSemesters([]);
@@ -137,7 +140,7 @@ const AdminRegisterUser = () => {
       const response = await fetchDepartementsByCousresData(courseId);
       
       if (response.success && response.data && response.data.length > 0) {
-        setDepartments(response.data);
+        setCourseDepartments(response.data);
         
         setFormData({
           ...formData,
@@ -153,12 +156,12 @@ const AdminRegisterUser = () => {
         setSemesters([]);
       } else {
         setMessage({ type: "error", text: "No departments found for this course" });
-        setDepartments([]);
+        setCourseDepartments([]);
       }
     } catch (error) {
       console.error("Failed to fetch department:", error);
       setMessage({ type: "error", text: "Failed to fetch department for this course" });
-      setDepartments([]);
+      setCourseDepartments([]);
     }
   };
 
@@ -729,15 +732,16 @@ const AdminRegisterUser = () => {
                         required
                       >
                         <option value="">Auto-populated from Course</option>
-                        {departments && departments.length > 0 ? (
-                          departments.map((dep) => (
-                            <option key={dep._id || Math.random()} value={dep._id}>
-                              {dep.departmentName}
-                            </option>
-                          ))
-                        ) : (
-                          <option disabled>No departments available</option>
-                        )}
+                       {courseDepartments.length > 0 ? (
+  courseDepartments.map((dep) => (
+    <option key={dep._id} value={dep._id}>
+      {dep.departmentName}
+    </option>
+  ))
+) : (
+  <option disabled>No departments available</option>
+)}
+
                       </select>
                     </div>
                   </>
@@ -754,15 +758,16 @@ const AdminRegisterUser = () => {
                       required
                     >
                       <option value="">Select Department</option>
-                      {departments && departments.length > 0 ? (
-                        departments.map((dep) => (
-                          <option key={dep._id || Math.random()} value={dep._id}>
-                            {dep.departmentName}
-                          </option>
-                        ))
-                      ) : (
-                        <option disabled>No departments available</option>
-                      )}
+                    {allDepartments.length > 0 ? (
+  allDepartments.map((dep) => (
+    <option key={dep._id} value={dep._id}>
+      {dep.departmentName}
+    </option>
+  ))
+) : (
+  <option disabled>No departments available</option>
+)}
+
                     </select>
                   </div>
                 )}
