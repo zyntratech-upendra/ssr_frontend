@@ -1,7 +1,8 @@
 // src/components/CombinedApplicantDetails.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { uploadSingleFile } from '../services/admissonService';
+import { uploadSingleFile, saveDraft, saveLocalDraft } from '../services/admissonService';
+import { Save, AlertCircle } from 'lucide-react';
 
 /**
  * CombinedApplicantDetails
@@ -120,6 +121,8 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
   // UI & validation
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [draftId, setDraftId] = useState(data?.draftId || null);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   useEffect(() => {
     // sync if parent passes updated data later
@@ -259,10 +262,49 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
     signatureUpload: { ...signatureUpload }
   });
 
+  /* -------------------------
+     Draft saving
+     ------------------------- */
+  const saveDraftToServer = async (isManualSave = false) => {
+    try {
+      setSaving(true);
+      setErrors({});
+      const payload = buildCombined();
+      
+      // If draftId exists (resuming or already saved), UPDATE it
+      // If draftId doesn't exist (new draft), CREATE a new one
+      const response = await saveDraft(payload, draftId || null);
+      
+      const newDraftId = response.data?._id || response._id;
+      if (newDraftId) {
+        setDraftId(newDraftId);
+      }
+
+      // Save to localStorage as backup
+      saveLocalDraft(payload);
+
+      // Show saved message
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 3000);
+
+      return true;
+    } catch (error) {
+      console.error('Draft save error:', error);
+      // Try to save locally as fallback
+      const payload = buildCombined();
+      saveLocalDraft(payload);
+      
+      setErrors((prev) => ({ ...prev, draftSave: 'Draft saved locally. Sync when online.' }));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveAndMaybeAdvance = ({ advance = true, submit = false } = {}) => {
     const payload = buildCombined();
     if (typeof onNext === 'function') {
-      onNext(payload, { advance, submit });
+      onNext(payload, { advance, submit, draftId });
     }
   };
 
@@ -275,13 +317,15 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
-      // save and go to 2
+      // save and go to 2 (update existing draft, not create new)
+      saveDraftToServer(false);
       saveAndMaybeAdvance({ advance: false, submit: false });
       setInternalStep(2);
       return;
     }
     if (internalStep === 2) {
-      // save and go to 3
+      // save and go to 3 (update existing draft, not create new)
+      saveDraftToServer(false);
       saveAndMaybeAdvance({ advance: false, submit: false });
       setInternalStep(3);
       return;
@@ -382,6 +426,20 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
       {errors.server && (
         <div style={{ background: '#fee2e2', color: '#b91c1c', padding: 10, borderRadius: 8, marginBottom: 12 }}>
           {errors.server}
+        </div>
+      )}
+
+      {errors.draftSave && (
+        <div style={{ background: '#fef3c7', color: '#92400e', padding: 10, borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertCircle size={18} />
+          {errors.draftSave}
+        </div>
+      )}
+
+      {draftSaved && (
+        <div style={{ background: '#d1fae5', color: '#065f46', padding: 10, borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Save size={18} />
+          Draft saved successfully!
         </div>
       )}
 
@@ -576,7 +634,7 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => { saveAndMaybeAdvance({ advance: false }); }} style={styles.btnGhost}>Save</button>
+                <button type="button" onClick={() => { saveDraftToServer(true); }} style={styles.btnGhost}>Save</button>
                 <button type="submit" style={styles.btnPrimary}>Save & Next →</button>
               </div>
             </div>
@@ -842,7 +900,7 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => { saveAndMaybeAdvance({ advance: false }); }} style={styles.btnGhost}>Save</button>
+              <button type="button" onClick={() => { saveDraftToServer(true); }} style={styles.btnGhost}>Save</button>
               <button type="button" onClick={() => setInternalStep(3)} className="btn-primary" style={styles.btnPrimary}>Save & Next →</button>
             </div>
           </div>
@@ -925,7 +983,7 @@ export default function CombinedApplicantDetails({ data = {}, onNext, onPrevious
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => { saveAndMaybeAdvance({ advance: false }); }} style={styles.btnGhost}>Save</button>
+              <button type="button" onClick={() => { saveDraftToServer(true); }} style={styles.btnGhost}>Save</button>
               <button type="button" onClick={handleFinalSubmit} disabled={saving} style={styles.btnPrimary}>
                 {saving ? 'Submitting...' : 'Submit Application'}
               </button>
@@ -946,7 +1004,7 @@ const styles = {
   card: {
     background: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
     border: '1px solid rgba(15,23,42,0.03)'
   },
@@ -956,59 +1014,70 @@ const styles = {
     gap: 14
   },
   section: {
-    background: '#fbfdff',
+    background: 'linear-gradient(135deg, #fbfdff 0%, #f5f8ff 100%)',
     borderRadius: 10,
-    padding: 12,
-    border: '1px solid rgba(15,23,42,0.03)'
+    padding: 14,
+    border: '1px solid rgba(15,23,42,0.04)',
   },
   subCard: {
     background: '#fafcff',
     borderRadius: 10,
-    padding: 12,
-    border: '1px solid rgba(15,23,42,0.03)'
+    padding: 14,
+    border: '1px solid rgba(15,23,42,0.03)',
   },
-  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { fontWeight: 700, fontSize: 14 },
+  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontWeight: 700, fontSize: 15, color: '#0f172a' },
   sectionHint: { color: '#6b7280', fontSize: 12 },
-  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 },
+  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   field: { display: 'flex', flexDirection: 'column' },
   label: { fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#0f172a' },
-  input: { padding: '10px 12px', borderRadius: 8, border: '1px solid #e6eef8', fontSize: 14 },
-  fileInput: { padding: 6, borderRadius: 6, border: '1px solid #e6eef8' },
-  preview: { marginTop: 8, padding: 8, background: '#f3f4f6', borderRadius: 6, textAlign: 'center' },
+  input: { 
+    padding: '11px 13px', 
+    borderRadius: 8, 
+    border: '1px solid #e6eef8', 
+    fontSize: 14,
+    transition: 'all 0.2s ease',
+    fontFamily: 'inherit',
+  },
+  fileInput: { padding: 8, borderRadius: 6, border: '1px solid #e6eef8' },
+  preview: { marginTop: 10, padding: 10, background: '#f3f4f6', borderRadius: 6, textAlign: 'center' },
   previewImage: { maxWidth: '100%', maxHeight: 180, borderRadius: 6 },
   table: { width: '100%', borderCollapse: 'collapse' },
-  tableHeader: { backgroundColor: '#eef2ff', color: '#0f172a' },
-  tableCell: { padding: 8, border: '1px solid #e6eef8', textAlign: 'left' },
-  tableInput: { width: '100%', padding: 6, border: '1px solid #e6eef8', borderRadius: 6 },
-  checkboxGroup: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 8 },
+  tableHeader: { backgroundColor: '#eef2ff', color: '#0f172a', fontWeight: 600 },
+  tableCell: { padding: 10, border: '1px solid #e6eef8', textAlign: 'left' },
+  tableInput: { width: '100%', padding: 8, border: '1px solid #e6eef8', borderRadius: 6 },
+  checkboxGroup: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 10 },
   checkboxLabel: { display: 'flex', alignItems: 'center', gap: 8 },
-  summaryItem: { padding: '6px 0', borderBottom: '1px dashed #e6eef8' },
+  summaryItem: { padding: '8px 0', borderBottom: '1px dashed #e6eef8' },
   btnPrimary: {
-    padding: '10px 18px',
+    padding: '11px 20px',
     borderRadius: 10,
     border: 'none',
     background: 'linear-gradient(90deg,#06b6d4,#2563eb)',
     color: 'white',
     fontWeight: 700,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 4px 12px rgba(6,182,212,0.2)',
   },
   btnSecondary: {
-    padding: '10px 14px',
+    padding: '11px 16px',
     borderRadius: 8,
     border: 'none',
     background: '#6b7280',
     color: 'white',
     fontWeight: 700,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   btnGhost: {
-    padding: '10px 14px',
+    padding: '11px 16px',
     borderRadius: 8,
-    border: '1px solid rgba(15,23,42,0.06)',
+    border: '1px solid #e6eef8',
     background: 'transparent',
     color: '#374151',
     fontWeight: 700,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   }
 };

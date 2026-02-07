@@ -57,6 +57,7 @@ import ApplicationSummary from "./pages/ApplicationSummary";
 import ApplicationDetails from "./pages/ApplicationDetails";
 import ApplicationListing from "./pages/ApplicationListing";
 import CoordinatorManagement from "./pages/CoordinatorManagement";
+import AdmissionFormWithDrafts from "./pages/AdmissionFormWithDrafts";
 
 const RootRedirect = () => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -107,6 +108,14 @@ function App() {
           <Route path="/summary/:applicationId" element={<ApplicationSummary />} />
           <Route path="/applications/:id" element={<ApplicationDetails />} />
           <Route path="/applications" element={<ApplicationListing />} />
+          <Route
+            path="/admission-drafts"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                <AdmissionFormWithDrafts />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/student/dashboard"
             element={

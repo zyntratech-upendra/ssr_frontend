@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getToken } from "./authService"; // Optional if you use authentication
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Axios instance
 const api = axios.create({
@@ -133,6 +133,94 @@ export const uploadMultipleFiles = async (filesArray) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Multiple file upload failed" };
+  }
+};
+
+/* ============================================================
+   DRAFT MANAGEMENT
+============================================================ */
+
+export const getSavedDrafts = async () => {
+  try {
+    const response = await api.get('/api/drafts/user');
+    return response.data ? response.data : response;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch drafts' };
+  }
+};
+
+export const getDraftById = async (draftId) => {
+  try {
+    const response = await api.get(`/api/drafts/${draftId}`);
+    return response.data ? response.data : response;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch draft' };
+  }
+};
+
+export const saveDraft = async (draftData, draftId = null) => {
+  try {
+    const payload = {
+      draftData,
+      status: 'draft',
+    };
+
+    if (draftId) {
+      const response = await api.put(`/api/drafts/${draftId}`, payload);
+      return response.data ? response.data : response;
+    } else {
+      const response = await api.post('/api/drafts', payload);
+      return response.data ? response.data : response;
+    }
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to save draft' };
+  }
+};
+
+export const deleteDraft = async (draftId) => {
+  try {
+    const response = await api.delete(`/api/drafts/${draftId}`);
+    return response.data ? response.data : response;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to delete draft' };
+  }
+};
+
+/* ============================================================
+   LOCAL STORAGE DRAFT UTILITIES
+============================================================ */
+
+export const saveLocalDraft = (draftData, key = 'admission_draft') => {
+  try {
+    const backup = {
+      data: draftData,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(key, JSON.stringify(backup));
+    return true;
+  } catch (error) {
+    console.error('Local storage save error:', error);
+    return false;
+  }
+};
+
+export const getLocalDraft = (key = 'admission_draft') => {
+  try {
+    const backup = localStorage.getItem(key);
+    return backup ? JSON.parse(backup) : null;
+  } catch (error) {
+    console.error('Local storage read error:', error);
+    return null;
+  }
+};
+
+export const clearLocalDraft = (key = 'admission_draft') => {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.error('Local storage clear error:', error);
+    return false;
   }
 };
 

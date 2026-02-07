@@ -253,6 +253,11 @@ const Sidebar = ({ onToggle }) => {
                   path: "/multi-step-form",
                 },
                 {
+                  name: "Saved Drafts",
+                  icon: FileText,
+                  path: "/admission-drafts",
+                },
+                {
                   name: "Application Listing",
                   icon: CheckCheckIcon,
                   path: "/applications",
@@ -389,6 +394,11 @@ const Sidebar = ({ onToggle }) => {
                   name: "New Admission",
                   icon: PlusSquare,
                   path: "/multi-step-form",
+                },
+                {
+                  name: "Saved Drafts",
+                  icon: FileText,
+                  path: "/admission-drafts",
                 },
                 {
                   name: "Application Listing",
