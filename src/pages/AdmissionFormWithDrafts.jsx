@@ -1,299 +1,293 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
-import CombinedApplicantDetails from '../components/CombinedApplicantDetails';
-import SavedDraftsList from '../components/SavedDraftsList';
-import { getDraftById, submitApplication, deleteDraft } from '../services/admissonService';
-import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import { useState } from "react";
+import Layout from "../components/Layout";
+import Sidebar from "../components/Sidebar";
+import CombinedApplicantDetails from "../components/CombinedApplicantDetails";
+import SavedDraftsList from "../components/SavedDraftsList";
+import {
+  getDraftById,
+  submitApplication,
+  deleteDraft,
+} from "../services/admissonService";
+import { ChevronDown, ChevronUp, ArrowLeft, Layers } from "lucide-react";
 
-/**
- * AdmissionFormWithDrafts
- * Wrapper component that shows saved drafts and allows resuming or starting new applications
- * Improved with full-page form view and better navigation
- */
-export default function AdmissionFormWithDrafts({ onSuccess }) {
-  const [viewMode, setViewMode] = useState('drafts'); // 'drafts' | 'form'
+const AdmissionFormWithDrafts = ({ onSuccess }) => {
+  const [viewMode, setViewMode] = useState("drafts");
   const [draftData, setDraftData] = useState(null);
-  const [formMode, setFormMode] = useState('new'); // 'new' | 'edit'
+  const [formMode, setFormMode] = useState("new");
   const [showDrafts, setShowDrafts] = useState(true);
   const [currentDraftId, setCurrentDraftId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleResumeDraft = async (draftData) => {
-    setDraftData(draftData);
-    setFormMode('edit');
-    setViewMode('form');
+  const handleResumeDraft = (data) => {
+    setDraftData(data);
+    setFormMode("edit");
+    setViewMode("form");
   };
 
-  const handleEditDraft = async (draftId) => {
-    try {
-      const response = await getDraftById(draftId);
-      const draft = response.data || response;
-      if (draft?.draftData) {
-        setCurrentDraftId(draftId);
-        setDraftData({ ...draft.draftData, draftId });
-        setFormMode('edit');
-        setViewMode('form');
-      }
-    } catch (error) {
-      console.error('Error loading draft:', error);
+  const handleEditDraft = async (id) => {
+    const res = await getDraftById(id);
+    const draft = res.data || res;
+    if (draft?.draftData) {
+      setCurrentDraftId(id);
+      setDraftData({ ...draft.draftData, draftId: id });
+      setFormMode("edit");
+      setViewMode("form");
     }
   };
 
   const handleFormNext = async (payload, meta) => {
-    if (meta.submit) {
-      try {
-        // Submit the application
-        const response = await submitApplication(payload);
-        
-        // Delete the draft after successful submission
-        if (currentDraftId) {
-          await deleteDraft(currentDraftId);
-        }
-        
-        // Show success and navigate to summary/confirmation page
-        alert('Application submitted successfully!');
-        
-        // Call parent callback if provided
-        if (typeof onSuccess === 'function') {
-          onSuccess(response);
-        } else {
-          // Reset and go back to drafts view
-          setViewMode('drafts');
-          setDraftData(null);
-          setCurrentDraftId(null);
-          setFormMode('new');
-        }
-      } catch (error) {
-        console.error('Submission error:', error);
-        alert('Failed to submit application: ' + (error.message || 'Please try again'));
-      }
-    }
-  };
+    if (!meta.submit) return;
 
-  const startNewApplication = () => {
+    const res = await submitApplication(payload);
+    if (currentDraftId) await deleteDraft(currentDraftId);
+
+    alert("Application submitted successfully!");
+    onSuccess?.(res);
+
+    setViewMode("drafts");
     setDraftData(null);
     setCurrentDraftId(null);
-    setFormMode('new');
-    setViewMode('form');
-  };
-
-  const backToDrafts = () => {
-    setViewMode('drafts');
-    setDraftData(null);
-    setCurrentDraftId(null);
-    setFormMode('new');
+    setFormMode("new");
   };
 
   return (
-    <Layout>
-      <div style={styles.container}>
-        {/* DRAFTS VIEW */}
-        {viewMode === 'drafts' && (
-          <>
-            {/* Header */}
-            <div style={styles.pageHeader}>
-              <h1 style={styles.pageTitle}>Admission Application</h1>
-              <p style={styles.pageSubtitle}>Fill up your requisite details to apply for admission</p>
-            </div>
+    <>
+      {/* ===================== STYLES ===================== */}
+      <style>{`
+        :root {
+          --sidebar-width: 250px;
+          --sidebar-collapsed: 80px;
+          --primary: #ad8ff8;
+          --primary-dark: #8b6fe6;
+          --primary-soft: #f5f1ff;
+          --text-dark: #1e293b;
+          --text-muted: #64748b;
+          --border: #e5e7eb;
+        }
 
-            {/* Drafts Section */}
-            <div style={styles.section}>
-              <button
-                onClick={() => setShowDrafts(!showDrafts)}
-                style={styles.collapsibleHeader}
-              >
-                <div style={styles.headerContent}>
-                  <h2 style={styles.sectionTitle}>📋 Your Saved Drafts</h2>
-                  <p style={styles.sectionHint}>Resume your incomplete applications</p>
+        body {
+          margin: 0;
+          font-family: 'Inter','Poppins',system-ui,sans-serif;
+          background: linear-gradient(135deg,#f7f4ff,#eef2ff);
+          color: var(--text-dark);
+        }
+
+        .dashboard-container {
+          display: flex;
+          min-height: 100vh;
+        }
+
+        .main-content {
+          flex: 1;
+          padding: clamp(16px,3vw,36px);
+          transition: margin-left .35s ease;
+        }
+
+        /* HEADER */
+        .page-header {
+          margin-bottom: 28px;
+        }
+
+        .page-title {
+          font-size: clamp(22px,2.5vw,28px);
+          font-weight: 700;
+          color: var(--primary-dark);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .page-subtitle {
+          color: var(--text-muted);
+          margin-top: 6px;
+        }
+
+        /* CARD */
+        .card-box {
+          background: linear-gradient(135deg,#fff,var(--primary-soft));
+          border-radius: 16px;
+          padding: 26px;
+          box-shadow: 0 10px 30px rgba(173,143,248,0.18);
+          margin-bottom: 32px;
+        }
+
+        .section-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: var(--primary-dark);
+          margin-bottom: 16px;
+        }
+
+        /* COLLAPSIBLE */
+        .collapsible-header {
+          width: 100%;
+          background: transparent;
+          border: none;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .drafts-content {
+          margin-top: 20px;
+        }
+
+        /* BUTTONS */
+        .btn-primary-custom {
+          background: linear-gradient(135deg,var(--primary-dark),var(--primary));
+          border-radius: 12px;
+          padding: 12px 22px;
+          font-weight: 600;
+          border: none;
+          color: white;
+          width: 100%;
+          margin-top: 22px;
+          cursor: pointer;
+        }
+
+        /* FORM VIEW */
+        .form-wrapper {
+          background: #fff;
+          border-radius: 16px;
+          box-shadow: 0 10px 30px rgba(0,0,0,.08);
+        }
+
+        .form-header {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 18px 22px;
+          border-bottom: 1px solid var(--border);
+          background: linear-gradient(135deg,#fff,var(--primary-soft));
+        }
+
+        .back-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          background: #fff;
+          cursor: pointer;
+          font-weight: 600;
+          color: var(--primary-dark);
+        }
+
+        .form-body {
+          padding: 22px;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+          .card-box {
+            padding: 18px;
+          }
+          .form-body {
+            padding: 16px;
+          }
+        }
+      `}</style>
+
+     
+        <div className="dashboard-container">
+          <Sidebar onToggle={setSidebarOpen} />
+
+          <div
+            className="main-content"
+            style={{
+              marginLeft: sidebarOpen
+                ? "var(--sidebar-width)"
+                : "var(--sidebar-collapsed)",
+            }}
+          >
+            {/* ================= DRAFTS VIEW ================= */}
+            {viewMode === "drafts" && (
+              <>
+                <div className="page-header">
+                  <h1 className="page-title">
+                    <Layers size={26} /> Admission Application
+                  </h1>
+                  <p className="page-subtitle">
+                    Fill up your details to apply for admission
+                  </p>
                 </div>
-                <div style={styles.chevron}>
-                  {showDrafts ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </div>
-              </button>
 
-              {showDrafts && (
-                <div style={styles.draftsContent}>
-                  <SavedDraftsList
-                    onResumeDraft={handleResumeDraft}
-                    onEditDraft={handleEditDraft}
-                  />
-
-                  <button onClick={startNewApplication} style={styles.startNewBtn}>
-                    ✏️ Start New Application
+                <div className="card-box">
+                  <button
+                    className="collapsible-header"
+                    onClick={() => setShowDrafts(!showDrafts)}
+                  >
+                    <div>
+                      <h2 className="section-title">Saved Drafts</h2>
+                      <p className="page-subtitle">
+                        Resume incomplete applications
+                      </p>
+                    </div>
+                    {showDrafts ? <ChevronUp /> : <ChevronDown />}
                   </button>
+
+                  {showDrafts && (
+                    <div className="drafts-content">
+                      <SavedDraftsList
+                        onResumeDraft={handleResumeDraft}
+                        onEditDraft={handleEditDraft}
+                      />
+
+                      <button
+                        className="btn-primary-custom"
+                        onClick={() => {
+                          setDraftData(null);
+                          setFormMode("new");
+                          setViewMode("form");
+                        }}
+                      >
+                        Start New Application
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </>
-        )}
+              </>
+            )}
 
-        {/* FORM VIEW */}
-        {viewMode === 'form' && (
-          <div style={styles.formViewContainer}>
-            {/* Form Header with Navigation */}
-            <div style={styles.formViewHeader}>
-              <button
-                onClick={backToDrafts}
-                style={styles.backButton}
-                title="Back to drafts"
-              >
-                <ArrowLeft size={18} />
-                Back to Drafts
-              </button>
-              <div>
-                <h2 style={styles.formViewTitle}>
-                  {formMode === 'new' ? '✨ New Application' : '📝 Edit Application'}
-                </h2>
-                <p style={styles.formViewSubtitle}>Complete all required fields to submit</p>
+            {/* ================= FORM VIEW ================= */}
+            {viewMode === "form" && (
+              <div className="card-box form-wrapper">
+                <div className="form-header">
+                  <button
+                    className="back-btn"
+                    onClick={() => setViewMode("drafts")}
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <div>
+                    <h2 className="section-title">
+                      {formMode === "new"
+                        ? "New Application"
+                        : "Edit Application"}
+                    </h2>
+                    <p className="page-subtitle">
+                      Complete all required fields
+                    </p>
+                  </div>
+                </div>
+
+                <div className="form-body">
+                  <CombinedApplicantDetails
+                    data={draftData || {}}
+                    onNext={handleFormNext}
+                    onPrevious={() => setViewMode("drafts")}
+                  />
+                </div>
               </div>
-              <div style={{ width: 120 }} />
-            </div>
-
-            {/* Form Content */}
-            <div style={styles.formContent}>
-              <CombinedApplicantDetails
-                data={draftData || {}}
-                onNext={handleFormNext}
-                onPrevious={backToDrafts}
-              />
-            </div>
+            )}
           </div>
-        )}
-      </div>
-    </Layout>
+        </div>
+    
+    </>
   );
-}
-
-const styles = {
-  container: {
-    width: '100%',
-    padding: '0',
-  },
-  
-  /* ========== DRAFTS VIEW STYLES ========== */
-  pageHeader: {
-    textAlign: 'center',
-    padding: '40px 20px 30px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    marginBottom: 0,
-  },
-  pageTitle: {
-    margin: 0,
-    fontSize: 32,
-    fontWeight: 700,
-    marginBottom: 8,
-  },
-  pageSubtitle: {
-    margin: 0,
-    fontSize: 16,
-    opacity: 0.9,
-  },
-  
-  section: {
-    marginBottom: 0,
-    background: 'white',
-  },
-  collapsibleHeader: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    background: 'linear-gradient(90deg, #f0f9ff, #f5f7ff)',
-    border: 'none',
-    borderBottom: '2px solid #e0e7ff',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  headerContent: {
-    flex: 1,
-    textAlign: 'left',
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  sectionHint: {
-    margin: 0,
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  chevron: {
-    display: 'flex',
-    alignItems: 'center',
-    color: '#0f172a',
-  },
-  draftsContent: {
-    padding: '30px 20px',
-    background: 'white',
-  },
-  startNewBtn: {
-    marginTop: 24,
-    padding: '14px 24px',
-    background: 'linear-gradient(90deg, #06b6d4, #2563eb)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
-    width: '100%',
-    transition: 'all 0.2s ease',
-  },
-
-  /* ========== FORM VIEW STYLES ========== */
-  formViewContainer: {
-    width: '100%',
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    background: '#f8fafc',
-  },
-  formViewHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '24px 20px',
-    background: 'white',
-    borderBottom: '1px solid #e2e8f0',
-    boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10,
-  },
-  backButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 14px',
-    background: 'transparent',
-    color: '#2563eb',
-    border: '1px solid #e0e7ff',
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  formViewTitle: {
-    margin: 0,
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#0f172a',
-  },
-  formViewSubtitle: {
-    margin: '6px 0 0 0',
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  formContent: {
-    flex: 1,
-    padding: '30px 20px',
-    maxWidth: 1200,
-    margin: '0 auto',
-    width: '100%',
-  },
 };
+
+export default AdmissionFormWithDrafts;
